@@ -2,12 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jaytaylor/hn-utils/common"
-	"github.com/jaytaylor/hn-utils/common/storiesflags"
 	"github.com/jaytaylor/hn-utils/domain"
 
 	"github.com/PuerkitoBio/goquery"
@@ -16,70 +14,53 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	Password string
-)
-
 func init() {
-	storiesflags.Init(rootCmd)
-
-	rootCmd.PersistentFlags().StringVarP(&Password, "password", "p", "", "HN login password")
+	upvotedCmd.MarkFlagRequired("user")
+	upvotedCmd.MarkFlagRequired("password")
 }
 
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		common.ErrorExit(err)
-	}
-}
-
-var rootCmd = &cobra.Command{
-	Use:   "upvotes",
-	Short: "Donwloads HN user upvotes",
-	Long:  "Retrieves user upvotes as an array of structured Story object for a given HN user/password",
-	PreRun: func(_ *cobra.Command, _ []string) {
-		common.InitLogging(storiesflags.Quiet, storiesflags.Verbose)
-
-		if Password == "" {
-			common.ErrorExit(errors.New("Missing required flag: -p/--password must not be empty"))
-		}
-	},
+var upvotedCmd = &cobra.Command{
+	Use:     "upvoted",
+	Aliases: []string{"upvotes"},
+	Short:   "Downloads HN user upvoted stories",
+	Long:    "Retrieves user upvotes as an array of structured Story object for a given HN user/password",
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			moreLink        = fmt.Sprintf("%v/upvoted?id=%v", common.BaseURL, storiesflags.User)
+			moreLink        = fmt.Sprintf("%v/upvoted?id=%v", common.BaseURL, User)
 			stories         = domain.Stories{}
 			existingStories domain.Stories
 			existingID      int64 = -1 // Used for picking up where an existing collection ends.
 		)
 
-		if storiesflags.ReadExisting != "" {
+		if ReadExisting != "" {
 			var err error
-			if existingStories, err = common.LoadStories(storiesflags.ReadExisting); err != nil {
-				common.ErrorExit(err)
+			if existingStories, err = common.LoadStories(ReadExisting); err != nil {
+				log.Fatal(err)
 			} else if len(existingStories) > 0 {
 				existingID = existingStories[0].ID
 			}
 		}
 
-		client, err := common.Login(storiesflags.User, Password)
+		client, err := common.Login(User, Password)
 		if err != nil {
-			common.ErrorExit(err)
+			log.Fatal(err)
 		}
 		log.Debug("Logged in successfully")
 
 		for len(moreLink) > 0 {
 			log.WithField("more-link", moreLink).Debug("Fetching")
 
-			rc, err := common.GetLoggedInPage(client, moreLink)
+			rc, err := common.CheckedGet(client, moreLink)
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 
 			doc, err := goquery.NewDocumentFromReader(rc)
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 			if err := rc.Close(); err != nil {
-				common.ErrorExit(fmt.Errorf("closing response body from %v: %s", moreLink, err))
+				log.Fatalf("closing response body from %v: %s", moreLink, err)
 			}
 
 			var caughtUp bool
@@ -111,28 +92,28 @@ var rootCmd = &cobra.Command{
 				moreLink = fmt.Sprintf("%s/%s", common.BaseURL, moreLink)
 			}
 
-			if storiesflags.MaxStories != -1 && len(stories) >= storiesflags.MaxStories {
+			if MaxItems != -1 && len(stories) >= MaxItems {
 				break
 			}
 		}
 
-		switch storiesflags.OutputFormat {
+		switch OutputFormat {
 		case "json":
 			bs, err := json.MarshalIndent(stories, "", "    ")
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 			fmt.Print(string(bs))
 
 		case "yaml":
 			bs, err := yaml.Marshal(stories)
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 			fmt.Print(string(bs))
 
 		default:
-			common.ErrorExit(fmt.Errorf("unrecognized output format %q", storiesflags.OutputFormat))
+			log.Fatalf("unrecognized output format %q", OutputFormat)
 		}
 	},
 }

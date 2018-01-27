@@ -13,6 +13,7 @@ type Story struct {
 	CommentsURL string
 	Submitter   string
 	Timestamp   time.Time
+	Children    Comments
 }
 
 type Stories []Story

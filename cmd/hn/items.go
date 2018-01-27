@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/jaytaylor/hn-utils/common"
-	"github.com/jaytaylor/hn-utils/common/storiesflags"
 	"github.com/jaytaylor/hn-utils/domain"
 
 	"github.com/PuerkitoBio/goquery"
@@ -15,45 +14,52 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func init() {
-	storiesflags.Init(rootCmd)
-}
-
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		common.ErrorExit(err)
-	}
-}
-
-var rootCmd = &cobra.Command{
-	Use:   "favorites",
-	Short: "Downloads HN user favorites",
-	Long:  "Retrieves HN user favorites as an array of structured Story objects",
+var itemsCmd = &cobra.Command{
+	Use:   "items",
+	Short: "Downloads HN items by ID",
+	Long:  "Retrieves items by ID and emit as an array of structured objects; providing a login/password lets HN know who you are so they hopefully don't blacklist you",
 	PreRun: func(_ *cobra.Command, _ []string) {
-		common.InitLogging(storiesflags.Quiet, storiesflags.Verbose)
+		if Password == "" {
+			log.Warnf("-p/--password flag is absent; there is an increased change this client will be blacklisted")
+		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			moreLink        = fmt.Sprintf("%v/favorites?id=%v", common.BaseURL, storiesflags.User)
+			moreLink        = fmt.Sprintf("%v/item?id=%v", common.BaseURL, User)
 			stories         = domain.Stories{}
 			existingStories domain.Stories
 			existingID      int64 = -1 // Used for picking up where an existing collection ends.
 		)
 
-		if storiesflags.ReadExisting != "" {
+		if ReadExisting != "" {
 			var err error
-			if existingStories, err = common.LoadStories(storiesflags.ReadExisting); err != nil {
-				common.ErrorExit(err)
+			if existingStories, err = common.LoadStories(ReadExisting); err != nil {
+				log.Fatal(err)
 			} else if len(existingStories) > 0 {
 				existingID = existingStories[0].ID
 			}
 		}
 
+		client, err := common.Login(User, Password)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Debug("Logged in successfully")
+
 		for len(moreLink) > 0 {
 			log.WithField("more-link", moreLink).Debug("Fetching")
-			doc, err := goquery.NewDocument(moreLink)
+
+			rc, err := common.CheckedGet(client, moreLink)
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
+			}
+
+			doc, err := goquery.NewDocumentFromReader(rc)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := rc.Close(); err != nil {
+				log.Fatalf("closing response body from %v: %s", moreLink, err)
 			}
 
 			var caughtUp bool
@@ -85,28 +91,28 @@ var rootCmd = &cobra.Command{
 				moreLink = fmt.Sprintf("%s/%s", common.BaseURL, moreLink)
 			}
 
-			if storiesflags.MaxStories != -1 && len(stories) >= storiesflags.MaxStories {
+			if MaxItems != -1 && len(stories) >= MaxItems {
 				break
 			}
 		}
 
-		switch storiesflags.OutputFormat {
+		switch OutputFormat {
 		case "json":
 			bs, err := json.MarshalIndent(stories, "", "    ")
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 			fmt.Print(string(bs))
 
 		case "yaml":
 			bs, err := yaml.Marshal(stories)
 			if err != nil {
-				common.ErrorExit(err)
+				log.Fatal(err)
 			}
 			fmt.Print(string(bs))
 
 		default:
-			common.ErrorExit(fmt.Errorf("unrecognized output format %q", storiesflags.OutputFormat))
+			log.Fatalf("unrecognized output format %q", OutputFormat)
 		}
 	},
 }

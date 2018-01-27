@@ -28,7 +28,7 @@ func LoadStories(filename string) (domain.Stories, error) {
 		}
 		defer func() {
 			if err := file.Close(); err != nil {
-				ErrorExit(fmt.Errorf("closing %v: %s", filename, err))
+				log.Warnf("Unexpected problem closing %v: %s", filename, err)
 			}
 		}()
 		r = file

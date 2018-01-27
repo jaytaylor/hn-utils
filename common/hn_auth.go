@@ -24,12 +24,8 @@ func Login(username string, password string) (*http.Client, error) {
 		return nil, fmt.Errorf("creating cookie jar: %s", err)
 	}
 
-	client := &http.Client{
-		Jar: jar,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := NoAuthClient()
+	client.Jar = jar
 
 	form := url.Values{}
 	form.Add("acct", username)
@@ -63,9 +59,18 @@ func Login(username string, password string) (*http.Client, error) {
 	return client, nil
 }
 
-// GetLoggedInPage requires an already authenticated *http.Client and retrieves
+func NoAuthClient() *http.Client {
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	return client
+}
+
+// CheckedGet requires an already authenticated *http.Client and retrieves
 // content from the specified page.
-func GetLoggedInPage(client *http.Client, page string) (io.ReadCloser, error) {
+func CheckedGet(client *http.Client, page string) (io.ReadCloser, error) {
 	req, err := http.NewRequest("GET", page, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating logged-in GET request: %s", err)

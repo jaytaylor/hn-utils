@@ -1,14 +1,12 @@
 package common
 
 import (
-	"errors"
-
 	log "github.com/sirupsen/logrus"
 )
 
 func InitLogging(quiet bool, verbose bool) {
 	if quiet && verbose {
-		ErrorExit(errors.New("Invalid logging flag combination: cannot turn on both quiet and verbose modes"))
+		log.Fatal("Invalid logging flag combination: cannot turn on both quiet and verbose modes")
 	}
 
 	level := log.InfoLevel
