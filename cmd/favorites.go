@@ -11,9 +11,9 @@ import (
 
 	"github.com/jaytaylor/hn-utils/domain"
 
+	"gigawatt.io/ago"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/araddon/dateparse"
-	"github.com/gigawattio/ago"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
@@ -62,6 +62,7 @@ var rootCmd = &cobra.Command{
 		for len(moreLink) > 0 {
 			now := time.Now()
 
+			log.WithField("more-link", moreLink).Debug("Fetching")
 			doc, err := goquery.NewDocument(moreLink)
 			if err != nil {
 				errorExit(err)
