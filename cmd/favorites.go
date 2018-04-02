@@ -69,7 +69,7 @@ var rootCmd = &cobra.Command{
 
 			doc.Find(".athing").Each(func(i int, s *goquery.Selection) {
 				var (
-					title    = s.Find(".title a")
+					title    = s.Find(".title a.storylink")
 					comments = s.Next().Find("a").Last()
 					story    = domain.Story{
 						ID:          int64Or(s.AttrOr("id", "0"), -1),
