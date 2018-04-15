@@ -80,7 +80,7 @@ var upvotesCmd = &cobra.Command{
 					story    = domain.Story{
 						ID:          int64Or(s.AttrOr("id", "0"), -1),
 						Title:       title.Text(),
-						URL:         title.AttrOr("href", ""),
+						URL:         reconstructHNURL(title.AttrOr("href", "")),
 						Points:      int64Or(numExpr.ReplaceAllString(s.Next().Find(".score").Text(), "$1"), -1),
 						Comments:    int64Or(numExpr.ReplaceAllString(comments.Text(), "$1"), -1),
 						CommentsURL: comments.AttrOr("href", ""),
