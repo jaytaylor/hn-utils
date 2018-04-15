@@ -29,21 +29,31 @@ var (
 var (
 	User         string
 	OutputFormat string
+	MaxStories   int
 	Quiet        bool
 	Verbose      bool
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&User, "user", "u", "jaytaylor", "HN username to find favorites for")
-	rootCmd.PersistentFlags().StringVarP(&OutputFormat, "output", "o", "json", `Output format, one of "json", "yaml"`)
-	rootCmd.PersistentFlags().BoolVarP(&Quiet, "quiet", "q", false, "Activate quiet log output")
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "Activate verbose log output")
+	initFavoritesFlags()
+
+	initUpvotesFlags()
+
+	rootCmd.AddCommand(upvotesCmd)
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		errorExit(err)
 	}
+}
+
+func initFavoritesFlags() {
+	rootCmd.PersistentFlags().StringVarP(&User, "user", "u", "jaytaylor", "HN username to find favorites for")
+	rootCmd.PersistentFlags().StringVarP(&OutputFormat, "output", "o", "json", `Output format, one of "json", "yaml"`)
+	rootCmd.PersistentFlags().IntVarP(&MaxStories, "max-stories", "m", -1, "Maximum number of stories to collect")
+	rootCmd.PersistentFlags().BoolVarP(&Quiet, "quiet", "q", false, "Activate quiet log output")
+	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "Activate verbose log output")
 }
 
 var rootCmd = &cobra.Command{
