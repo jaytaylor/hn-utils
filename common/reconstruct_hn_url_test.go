@@ -1,4 +1,4 @@
-package cmd
+package common
 
 import (
 	"fmt"
@@ -7,11 +7,11 @@ import (
 
 func TestReconstructHNURL(t *testing.T) {
 	var (
-		in       = "item?id=16838460"
-		expected = fmt.Sprintf("%v/%v", baseURL, in)
+		fragment = "item?id=16838460"
+		expected = fmt.Sprintf("%v/%v", BaseURL, fragment)
 	)
 
-	actual := reconstructHNURL(in)
+	actual := ReconstructHNURL(fragment)
 
 	if actual != expected {
 		t.Errorf("Expected fixed URL=%v but actual result=%v", expected, actual)
