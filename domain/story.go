@@ -14,3 +14,5 @@ type Story struct {
 	Submitter   string
 	Timestamp   time.Time
 }
+
+type Stories []Story

@@ -43,9 +43,20 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		var (
-			stories  = []domain.Story{}
-			moreLink = fmt.Sprintf("%v/favorites?id=%v", common.BaseURL, storiesflags.User)
+			moreLink        = fmt.Sprintf("%v/favorites?id=%v", common.BaseURL, storiesflags.User)
+			stories         = domain.Stories{}
+			existingStories domain.Stories
+			existingID      int64 = -1 // Used for picking up where an existing collection ends.
 		)
+
+		if storiesflags.ReadExisting != "" {
+			var err error
+			if existingStories, err = common.LoadStories(storiesflags.ReadExisting); err != nil {
+				common.ErrorExit(err)
+			} else if len(existingStories) > 0 {
+				existingID = existingStories[0].ID
+			}
+		}
 
 		for len(moreLink) > 0 {
 			now := time.Now()
@@ -56,7 +67,13 @@ var rootCmd = &cobra.Command{
 				common.ErrorExit(err)
 			}
 
-			doc.Find(".athing").Each(func(i int, s *goquery.Selection) {
+			var caughtUp bool
+
+			doc.Find(".athing").EachWithBreak(func(i int, s *goquery.Selection) bool {
+				if caughtUp {
+					return false
+				}
+
 				var (
 					title    = s.Find(".title a.storylink")
 					comments = s.Next().Find("a").Last()
@@ -91,8 +108,21 @@ var rootCmd = &cobra.Command{
 					}
 				}
 
+				if story.ID == existingID {
+					log.WithField("story-id", story.ID).Debug("Caught up to newest story in pre-existing data")
+					caughtUp = true
+					stories = append(stories, existingStories...)
+				}
+
 				stories = append(stories, story)
+
+				return true
 			})
+
+			if caughtUp {
+				break
+			}
+
 			moreLink = doc.Find(".morelink").Last().AttrOr("href", "")
 			if len(moreLink) > 0 && !strings.HasPrefix(moreLink, "https://") {
 				moreLink = fmt.Sprintf("%s/%s", common.BaseURL, moreLink)
