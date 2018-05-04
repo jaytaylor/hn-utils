@@ -4,25 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/jaytaylor/hn-utils/common"
 	"github.com/jaytaylor/hn-utils/common/storiesflags"
 	"github.com/jaytaylor/hn-utils/domain"
 
-	"gigawatt.io/ago"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/araddon/dateparse"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-)
-
-var (
-	numExpr    = regexp.MustCompile(`^([0-9]+).*$`)
-	hnuserExpr = regexp.MustCompile(`^user\?id=`)
 )
 
 var (
@@ -76,8 +67,6 @@ var rootCmd = &cobra.Command{
 		log.Debug("Logged in successfully")
 
 		for len(moreLink) > 0 {
-			now := time.Now()
-
 			log.WithField("more-link", moreLink).Debug("Fetching")
 
 			rc, err := common.GetLoggedInPage(client, moreLink)
@@ -100,39 +89,7 @@ var rootCmd = &cobra.Command{
 					return false
 				}
 
-				var (
-					title    = s.Find(".title a.storylink")
-					comments = s.Next().Find("a").Last()
-					story    = domain.Story{
-						ID:          common.Int64Or(s.AttrOr("id", "0"), -1),
-						Title:       title.Text(),
-						URL:         common.ReconstructHNURL(title.AttrOr("href", "")),
-						Points:      common.Int64Or(numExpr.ReplaceAllString(s.Next().Find(".score").Text(), "$1"), -1),
-						Comments:    common.Int64Or(numExpr.ReplaceAllString(comments.Text(), "$1"), -1),
-						CommentsURL: comments.AttrOr("href", ""),
-						Submitter:   hnuserExpr.ReplaceAllString(s.Next().Find(".hnuser").AttrOr("href", ""), ""),
-					}
-				)
-				if len(story.CommentsURL) > 0 && !strings.HasPrefix(story.CommentsURL, "https://") {
-					story.CommentsURL = fmt.Sprintf("%s/%s", common.BaseURL, story.CommentsURL)
-				}
-
-				humanTime := s.Next().Find(".age").Text()
-				// For items favorited in the early days of the feature, HN spits out
-				// "on <date>" instead of a human-style delta.
-				switch strings.Split(humanTime, " ")[0] {
-				case "on":
-					pieces := strings.Split(humanTime, " ")
-					if len(pieces) > 1 {
-						if ts, err := dateparse.ParseAny(strings.Join(pieces[1:], " ")); err == nil {
-							story.Timestamp = ts
-						}
-					}
-				default:
-					if ts := ago.Time(humanTime, now); ts != nil {
-						story.Timestamp = *ts
-					}
-				}
+				story := common.ExtractStory(s)
 
 				if story.ID == existingID {
 					log.WithField("story-id", story.ID).Debug("Caught up to newest story in pre-existing data")
