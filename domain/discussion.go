@@ -20,6 +20,8 @@ type Comment struct {
 	Children  Threads
 }
 
+type Comments []Comment
+
 // Threads is a group of comments.
 type Threads []*Comment
 

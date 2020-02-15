@@ -51,7 +51,7 @@ func Login(username string, password string) (*http.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("login: %s", err)
 	}
-	defer resp.body.Close()
+	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 3 || resp.Header.Get("Location") == "" {
 		body, _ := ioutil.ReadAll(resp.Body)
